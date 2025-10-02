@@ -8,7 +8,6 @@ module.exports.connectDatabase = async () => {
     try {
 
         console.log(`\n(database.js): ${new Date()}: 🔌 Iniciando conexão com o MongoDB...`);
-
         await mongoose.connect(process.env.MONGODB_URI);
 
         console.log(`\n(database.js): ${new Date()}: ✅ Conexão com o MongoDB estabelecida com sucesso.`);
