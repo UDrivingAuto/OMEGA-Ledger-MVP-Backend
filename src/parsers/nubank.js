@@ -3,87 +3,79 @@ const tdd = require('../utils/tratamentoDeDados');
 
 function extrairCreditosNubank(extrair) {
 
-    const linhas = extrair.text.split('\n').map(l => l.trim()).filter(Boolean);
+    const regex = /(\d{1,2}) ([A-Za-zçÇ]+) (\d{4})/i;
+
+    const registros = [];
+    let total = 0;
 
     let cliente = extrair.nome;
     let descAux = [];
     descAux = JSON.parse(extrair.descartes);
 
-    const registros = [];
-    let capturando = false;
-    let dataAtual = '';
-    let descricaoAtual = '';
+    const linhas = extrair.text.split('\n').map(l => l.trim()).filter(Boolean);
 
-    let total = 0;
+    let status = 'none';
+    let data = '';
+    let valor = 0;
+    let descricao = '';
 
     for (let i = 0; i < linhas.length; i++) {
 
         let linha = linhas[i];
 
-        if (linha.includes('Total de entradas')) {
+        if (status === 'none' && linha.includes('Total de entradas+')) {
 
-            capturando = true;            
+            status = 'movimentacao';
 
-            if (linhas[i - 1] === 'Rendimento líquido') {
-                capturando = false;
-            } else
-            if (linhas[i - 1] !== 'Rendimento líquido') {
+            let dataAtualFormat = tdd.parseDataText(linhas[i-1]);
 
-                dataAtual = linhas[i - 1];
+            data = dataAtualFormat;
 
-                let dataAtualFormat = tdd.parseDataText(dataAtual);
+        } else 
+        if ((status === 'movimentacao')) {
 
-                let count = i + 1;
+            let matchDataLinha = linha.match(regex);
 
-                while (capturando) {
+            if (matchDataLinha) {
+                status = 'none';
+                continue;
+            }
 
-                    if (linhas[count].includes('Total de saídas')) {
-                        capturando = false;
-                    } else {
+            let valorValid = tdd.ehValorMonetario(linha);
 
-                        let descricaoValid = false;
+            if (valorValid && descricao !== '') {
 
-                        let descartar = descAux.some(desc => {
-                            linhas[count].toLowerCase().includes(desc.toLowerCase());
-                        }); 
+                valor = tdd.parseValorMonetario(linha);
+                total += valor;
 
-                        if (linhas[count].toLowerCase().includes(cliente.toLowerCase())) {
-                            descricaoValid = false;
-                        }else
-                        if (descartar) {
-                            descricaoValid = false;
-                        } else {
-                            descricaoValid = creditosValidos.nubank().some(credito =>
-                                linhas[count].toLowerCase().includes(credito.toLowerCase())
-                            );
-                        }
+                registros.push({
+                    data: data,
+                    valor: valor,
+                    descricao: descricao
+                });
 
-                        if (descricaoValid) {
-                            descricaoAtual = 'Transferência Recebida';
-                        }
+                descricao = '';
+                valor = 0;
 
-                        let valorValid = tdd.ehValorMonetario(linhas[count]);
-                        let valor = '';
-
-                        if (valorValid) {
-
-                            valor = tdd.parseValorMonetario(linhas[count]);
-                            total += valor;
-
-                            registros.push({
-                                data: dataAtualFormat,
-                                descricao: descricaoAtual,
-                                valor: valor
-                            });
-
-                        }
-
-                        count++;
-
-                    }
-                }
+                continue;
 
             }
+
+            let clientName = linha.toLowerCase().includes(cliente.toLowerCase());
+            if (clientName) continue;
+
+            if (descAux.length > 0) {
+                let descartar = descAux.some(desc => {return linha.toLowerCase().includes(desc.toLowerCase());});
+                if (descartar) continue;
+            }
+
+            let creditos = creditosValidos.nubank().some(credito => {
+                return linha.toLowerCase().includes(credito.toLowerCase())
+            });
+            if (!creditos) continue;
+
+            let sepDesc = tdd.extrairCreditos(linha);
+            descricao = sepDesc[0].credito + ' ' + sepDesc[0].detalhes;
 
         }
 
