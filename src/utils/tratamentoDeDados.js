@@ -1,3 +1,5 @@
+const cvNubank = require('../test/creditosValidos');
+
 function ehValorMonetario(str) {
     const regex = /^\d{1,3}(?:\.\d{3})*,\d{2}$/;
     return regex.test(str.trim());
@@ -111,6 +113,36 @@ function tratarValor(valor) {
     return [valor.replace('-', '')];
 }
 
+function extrairCreditos(texto) {
+
+    const creditosValidos = cvNubank.nubank();
+    
+    const linhas = texto.split('\n').map(l => l.trim()).filter(Boolean);
+
+    const resultado = [];
+
+    linhas.forEach(linha => {
+
+        const creditoEncontrado = creditosValidos.find(credito => linha.startsWith(credito));
+
+        if (creditoEncontrado) {
+
+            // separa o crédito válido do resto da linha
+            const resto = linha.slice(creditoEncontrado.length).trim();
+
+            resultado.push({
+                credito: creditoEncontrado,
+                detalhes: resto
+            });
+
+        }
+
+    });
+
+    return resultado;
+
+}
+
 module.exports = {
     ehValorMonetario,
     parseValorMonetario,
@@ -118,5 +150,6 @@ module.exports = {
     parseDataText,
     parseDataExtense,
     extrairTipoENome,
-    tratarValor
+    tratarValor,
+    extrairCreditos
 }
